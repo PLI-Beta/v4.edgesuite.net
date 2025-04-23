@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD with PHP and MySQL</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+
+    <!-- Full-Screen Toggle Button -->
+    <button id="fullscreenToggle">Go Fullscreen</button>
+
+    <h2>Create User</h2>
+    <form id="createUserForm">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <button type="submit">Submit</button>  <!-- Button text changes to "Update User" when editing -->
+    </form>
+
+    <h2>Users List</h2>
+    <div id="userList"></div>
+
+    <div id="response"></div>
+
+    <script>
+        // Fullscreen toggle functionality
+        document.getElementById('fullscreenToggle').addEventListener('click', function() {
+            if (!document.fullscreenElement &&     // Check if the page is not already in full screen
+                !document.mozFullScreenElement &&  // Firefox
+                !document.webkitFullscreenElement && // Chrome and Safari
+                !document.msFullscreenElement) {   // IE/Edge
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen(); // Standard Fullscreen API
+                } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+                    document.documentElement.mozRequestFullScreen();
+                } else if (document.documentElement.webkitRequestFullscreen) { // Chrome/Safari
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+                    document.documentElement.msRequestFullscreen();
+                }
+                this.textContent = "Exit Fullscreen";  // Change button text
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen(); // Standard Fullscreen API
+                } else if (document.mozCancelFullScreen) { // Firefox
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) { // Chrome/Safari
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { // IE/Edge
+                    document.msExitFullscreen();
+                }
+                this.textContent = "Go Fullscreen";  // Reset button text
+            }
+        });
+
+        // Read Users (initially fetch users when page loads)
+        function loadUsers() {
+            $.ajax({
+                url: 'read_users.php',
+                type: 'GET',
+                success: function(response) {
+                    $('#userList').html(response);
+                }
+            });
+        }
+
+        // Call loadUsers on page load
+        $(document).ready(function() {
+            loadUsers();
+
+            // Create User (AJAX form submission)
+            $('#createUserForm').on('submit', function(e) {
+                e.preventDefault();
+
+                var name = $('#name').val();
+                var email = $('#email').val();
+
+                // Check if it's in edit mode (if the form is already populated)
+                var isEdit = $(this).data('editMode') || false;
+                var userId = $(this).data('userId');
+
+                // If it's an edit, use update_user.php
+                var url = isEdit ? 'update_user.php' : 'create_user.php';
+                var data = isEdit ? {
+                    id: userId,
+                    name: name,
+                    email: email
+                } : {
+                    name: name,
+                    email: email
+                };
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: data,
+                    success: function(response) {
+                        $('#response').html(response);
+                        loadUsers();  // Reload the user list
+
+                        // Reset the form after successful submit
+                        resetForm();
+                    }
+                });
+            });
+
+            // Edit User (populate form with data)
+            $(document).on('click', '.edit', function() {
+                var userDiv = $(this).closest('.user');
+                var id = userDiv.data('id');
+                var name = userDiv.find('p:first').text().replace('Name: ', '');
+                var email = userDiv.find('p:last').text().replace('Email: ', '');
+
+                // Fill the form with existing data
+                $('#name').val(name);
+                $('#email').val(email);
+
+                // Set form in edit mode
+                $('#createUserForm').data('editMode', true).data('userId', id);
+                $('#createUserForm button').text('Update User');  // Change button text to "Update User"
+            });
+
+            // Delete User
+            $(document).on('click', '.delete', function() {
+                var id = $(this).closest('.user').data('id');
+                $.ajax({
+                    url: 'delete_user.php',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function(response) {
+                        $('#response').html(response);
+                        loadUsers();  // Reload the user list
+                    }
+                });
+            });
+
+            // Reset form for creating new user (after edit or other action)
+            function resetForm() {
+                $('#createUserForm')[0].reset();  // Reset the form fields
+                $('#createUserForm').removeData('editMode').removeData('userId'); // Remove data
+                $('#createUserForm button').text('Submit');  // Reset button text back to "Submit"
+            }
+        });
+    </script>
+
+</body>
+</html>
